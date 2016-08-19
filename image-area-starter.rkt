@@ -17,6 +17,9 @@
    (* (image-width img) (image-height img)))
 
 ;;exemplos
-(check-expect (area-imagem (square 50 "outline" "red")) (* 50 50))
-(check-expect (area-imagem (rectangle 30 40 "solid" "blue")) (* 30 40))
-(check-expect (area-imagem (circle 100 "solid" "blue")) (* 200 200))
+(check-expect (area-imagem (square 50 "outline" "red"))
+              (* 50 50))
+(check-expect (area-imagem (rectangle 30 40 "solid" "blue"))
+              (* 30 40))
+(check-expect (area-imagem (circle 100 "solid" "blue"))
+              (* 200 200))
