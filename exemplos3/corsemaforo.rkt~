@@ -16,7 +16,6 @@
 ;; interp. representa a cor de um semáforo
 ;; dispensa exemplos
 
-;;Template (modelo) para função que consome dados do tipo CorSemaforo
 #;
 (define (fn-para-cor-semaforo cs)
   (cond [(string=? cs "vermelho") (... cs) ]
