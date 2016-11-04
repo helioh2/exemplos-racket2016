@@ -503,7 +503,7 @@
            (jogo-game-over? j)
            (jogo-tspawn j)
            (cons (make-tiro (vaca-x (jogo-vaca j))
-                            (* (/ (vaca-dx (jogo-vaca j)) (abs (vaca-dx (jogo-vaca j)))) D-TIRO)
+                            D-TIRO
                             (vaca-y (jogo-vaca j)))
                  (jogo-tiros j))
            )]

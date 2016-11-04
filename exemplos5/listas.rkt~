@@ -61,11 +61,8 @@
 (define (multiplica-dois-v2 ldn)
   (map dobro ldn))
 
-
-
 (define (somatorio-v2 ldn)
   (foldl + 0 ldn))
-
 
 
 (define (nosso-remove n ldn)

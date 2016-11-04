@@ -1,6 +1,6 @@
 ;; The first three lines of this file were inserted by DrRacket. They record metadata
 ;; about the language level of this file in a form that our tools can easily process.
-#reader(lib "htdp-advanced-reader.ss" "lang")((modname vaca-chupacabras-brotando) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
+#reader(lib "htdp-advanced-reader.ss" "lang")((modname vaca-chupacabras-pulaencima) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #t #t none #f () #f)))
 
 (require 2htdp/image)
 (require 2htdp/universe)
@@ -24,6 +24,7 @@
 (define MEIO-H-VACA (/ (image-width IMG-VACA-INO) 2 ))
 (define MEIO-V-VACA (/ (image-height IMG-VACA-INO) 2 ))
 (define MEIO-H-CC (/ (image-width IMG-CC) 2 ))
+(define MEIO-V-CC (/ (image-height IMG-CC) 2 ))
 
 (define LIMITE-DIREITO (- LARGURA MEIO-H-VACA))
 (define LIMITE-ESQUERDO MEIO-H-VACA)
@@ -37,6 +38,13 @@
 (define T-SPAWN (* 20 2))
 
 (define D-VACA-DEFAULT 10)
+
+(define Y-CHAO (* ALTURA 0.75))
+(define Y-CHAO-VACA (- Y-CHAO MEIO-V-VACA))
+(define Y-CHAO-CC (- Y-CHAO MEIO-V-CC))
+(define G (/ 30 28))
+(define DY-PULO -20)
+(define DY-QUICA -10)
 
 ;;DEFINIÇÕES DE DADOS
                             
@@ -55,12 +63,14 @@
 (define CC-CHEGANDO (make-chupacabra X-CC 0 (+ LIMITE-CIMA -5) (- DY-CC-DEFAULT)))
 (define CC-VIROU-L-CIMA (make-chupacabra X-CC 0 LIMITE-CIMA DY-CC-DEFAULT))
 
+(define CC-CHAO1 (make-chupacabra (* LARGURA 0.75) -10 Y-CHAO-CC 0))
+
 #;
 (define (fn-para-chupacabra cc)
   (... (chupacabra-y cc) (chupacabra-dy cc))
   )
 
-
+ 
 ; ListaDeChupaCabra é um desses:
 ;; - empty
 ;; - (cons ChupaCabra ListaDeChupaCabra)
@@ -73,6 +83,7 @@
                       (make-chupacabra (/ LARGURA 4) 0 (/ ALTURA 2) DY-CC-DEFAULT)
                       (make-chupacabra (/ LARGURA 4/3) 0 (/ ALTURA 3/2) DY-CC-DEFAULT)))
                       
+(define LDCC-CHAO (list CC-CHAO1))
 
 #;
 (define (fn-for-ldcc ldcc)
@@ -97,6 +108,8 @@
 (define VACA-CHEGANDO (make-vaca 50 -10 Y 0))
 (define VACA-ULTRAPASSOU (make-vaca (+ LIMITE-DIREITO 20) 50 Y 0))
 (define VACA-NO-LIMITE (make-vaca LIMITE-DIREITO -50 Y 0))
+
+(define VACA-CHAO (make-vaca LIMITE-ESQUERDO 0 Y-CHAO-VACA 0))
 
 #;
 (define (fn-para-vaca v)
@@ -142,6 +155,11 @@
                                 #false
                                 0))
 
+(define JOGO-INICIAL-CHAO (make-jogo VACA-CHAO
+                                     LDCC-CHAO
+                                     #false
+                                     1))
+
 #;
 (define (fn-para-jogo j)
   (... (jogo-vaca j)
@@ -153,13 +171,14 @@
 ;; Funções:
 
 ;; Jogo -> Jogo
-;; inicie o mundo com (main JOGO-INICIAL-SPAWNING)
+;; inicie o mundo com (main JOGO-INICIAL-CHAO)
 
 (define (main j)
   (big-bang j      ; Jogo
             (on-tick proximo-jogo)
             (to-draw desenha-jogo)
-            (on-key trata-tecla)))
+            (on-key trata-tecla-press)
+            (on-release trata-tecla-solta)))
 
 
 
@@ -174,15 +193,23 @@
   (local
     [
      (define spawn? (= (jogo-tspawn j) 0))
+     (define pulou-encima-cc? (pulou-encima-algum-chupacabra? (jogo-vaca j) (jogo-chupacabras j)))
      ]
-  (cond [(colisao-alguma-vaca-chupacabra? (jogo-vaca j) (jogo-chupacabras j))
+  (cond [(not (false? pulou-encima-cc?))
+         (make-jogo (proxima-vaca (quica (jogo-vaca j)))
+                    (proximos-chupacabras (remove pulou-encima-cc? (jogo-chupacabras j)))
+                    (jogo-game-over? j)
+                    (jogo-tspawn j))]
+    
+        [(colisao-alguma-vaca-chupacabra? (jogo-vaca j) (jogo-chupacabras j))
          (make-jogo (jogo-vaca j)
                     (jogo-chupacabras j)
                     #true
                     (jogo-tspawn j)
-                   )]
+                    )]
+        
 
-  [else (make-jogo (proxima-vaca (jogo-vaca j))
+  [else (make-jogo (proxima-vaca (jogo-vaca j)) 
                    (if spawn? 
                        (spawn-chupacabra (proximos-chupacabras (jogo-chupacabras j)))
                        (proximos-chupacabras (jogo-chupacabras j)))                       
@@ -190,24 +217,41 @@
                    (remainder (+ (jogo-tspawn j) 1) T-SPAWN))]
   )))
 
-;caso normal
-(check-expect (proximo-jogo JOGO-INICIAL)
-              (make-jogo (make-vaca (+ LIMITE-ESQUERDO 10) 10 Y 0)
-                         (list (make-chupacabra X-CC 0 (+ LIMITE-CIMA DY-CC-DEFAULT) DY-CC-DEFAULT))
-                         #false
-                         2))
 
-(check-expect (proximo-jogo JOGO-ZICA)
-              JOGO-ZICA-BRABA)
+
+;; quica : Vaca -> Vaca
+(define (quica v)
+  (make-vaca (vaca-x v)
+             (vaca-dx v)
+             (vaca-y v)
+             DY-QUICA))
+
+;; pulou-encima-algum-chupacabra? : Vaca ListaDeChupacabra -> Chupacabra | false
+(define (pulou-encima-algum-chupacabra? v ldcc)
+  (local [
+          (define busca (memf (lambda (cc) (pulou-encima? v cc))
+                              ldcc))]
+    (if (false? busca)
+        #false
+        (first busca))))
+
+;; pulou-encima? : Vaca Chupacabra -> Chupacabra | false
+(define (pulou-encima? v cc)
+  (if (and
+       (colisao-vaca-chupacabra? v cc)
+       ;(>= (+ (vaca-y v) MEIO-V-VACA) (- (chupacabra-y cc) MEIO-V-CC)))
+       (<= (+ (vaca-y v) MEIO-V-VACA) (- (chupacabra-y cc) (/ MEIO-V-CC 8))))
+      cc
+      #false))
+           
+                          
 
 
 ;; spawn-chupacabra : ListaDeChupacabra -> ListaDeChupacabra
 ;; cria novo chupacabra no local especificado
 
 (define (spawn-chupacabra ldcc)
-  (cons (make-chupacabra (random (/ LARGURA 2) LARGURA)
-                         (random 1 5) (random 1 ALTURA)
-                                       (random 1 5)) ldcc))
+  (cons (make-chupacabra LIMITE-DIREITO -10 Y-CHAO-CC 0) ldcc))
 
 
 ;; proximos-chupacabras : ListaDeChupacabra -> ListaDeChupacabra
@@ -323,44 +367,26 @@
                       (+ (vaca-y v) (vaca-dy v)) (vaca-dy v) )]
     [(< (vaca-x v) LIMITE-ESQUERDO)
      (make-vaca LIMITE-ESQUERDO (- (vaca-dx v))
-                      (+ (vaca-y v) (vaca-dy v)) (vaca-dy v) )]
-    [(> (vaca-y v) LIMITE-BAIXO)
-     (make-vaca (+ (vaca-x v) (vaca-dx v)) (vaca-dx v)
-                      LIMITE-BAIXO (- (vaca-dy v)))]
-    [(< (vaca-y v) LIMITE-CIMA)
-     (make-vaca (+ (vaca-x v) (vaca-dx v)) (vaca-dx v)
-                      LIMITE-CIMA (- (vaca-dy v)))]
+                      (+ (vaca-y v) (vaca-dy v)) (vaca-dy v) )] 
     [else
-     (make-vaca (+ (vaca-x v) (vaca-dx v)) (vaca-dx v)
-                      (+ (vaca-y v) (vaca-dy v)) (vaca-dy v) )]))
+     (cai v)]))
 
+;; cai: Vaca -> Vaca
+(define (cai v)
+  (local
+    [(define y (+ (vaca-y v) (vaca-dy v)))]
+    (make-vaca (+ (vaca-x v) (vaca-dx v))
+               (vaca-dx v)
+               (if (encima-chao? y)
+                   Y-CHAO-VACA
+                   y)
+               (if (encima-chao? y)
+                   0
+                   (+ (vaca-dy v) G)))))
 
-
-
-; exemplos / testes
-;casos em que ela anda pra direita sem chegar no limite
-(check-expect (proxima-vaca (make-vaca LIMITE-ESQUERDO 10 Y 0))
-              (make-vaca (+ LIMITE-ESQUERDO 10) 10 Y 0))
-(check-expect (proxima-vaca VACA-MEIO)
-              (make-vaca (+ (/ LARGURA 2) 10)
-                         10
-                         Y 0))
-; casos em que chega no limite direito e tem que virar
-(check-expect (proxima-vaca VACA-ANTES-VIRAR)
-              VACA-VIRADA)
-(check-expect (proxima-vaca VACA-ULTRAPASSOU)
-                            VACA-NO-LIMITE)
-; caso em que ela anda pra esquerda sem chegar no limite 
-(check-expect (proxima-vaca VACA-MEIO-VORTANO)
-                            (make-vaca (- (/ LARGURA 2) 10)
-                                       -10
-                                       Y 0))
-
-; casos em que chega no limite esquerdo e tem que virar
-(check-expect (proxima-vaca (make-vaca (+ LIMITE-ESQUERDO -10) -10 Y 0))
-                            (make-vaca LIMITE-ESQUERDO 10 Y 0))
-(check-expect (proxima-vaca (make-vaca (+ LIMITE-ESQUERDO -20) -50 Y 0))
-                            (make-vaca LIMITE-ESQUERDO 50 Y 0))
+;; encima-chao? Numero -> Boolean
+(define (encima-chao? y)
+  (>= y Y-CHAO-VACA))
 
               
 ;; FIM DA PARTE LÓGICA
@@ -410,15 +436,15 @@
 
 ;; INICIO DA LOGICA DE INTERAÇÃO
 
-;; trata-tecla : Jogo KeyEvent -> Jogo
+;; trata-tecla-press : Jogo KeyEvent -> Jogo
 ;; trata tecla usando trata-tecla-vaca
 ;!!!
-(define (trata-tecla j ke)
+(define (trata-tecla-press j ke)
   (cond
     [(and (jogo-game-over? j) (key=? ke "\r"))
-         JOGO-INICIAL-SPAWNING]
+         JOGO-INICIAL-CHAO]
     [else (make-jogo
-           (trata-tecla-vaca (jogo-vaca j) ke)
+           (trata-tecla-press-vaca (jogo-vaca j) ke)
            (jogo-chupacabras j)
            (jogo-game-over? j)
            (jogo-tspawn j)
@@ -426,24 +452,44 @@
 
 
 
-(check-expect (trata-tecla JOGO-ZICA-BRABA "\r")
-              JOGO-INICIAL-SPAWNING)
+(check-expect (trata-tecla-press JOGO-ZICA-BRABA "\r")
+              JOGO-INICIAL-CHAO)
 
-;; trata-tecla-vaca: Vaca KeyEvent -> Vaca
+;; trata-tecla-solta : Jogo KeyEvent -> Jogo
+;; trata tecla usando trata-tecla-vaca
+(define (trata-tecla-solta j ke)
+  (make-jogo
+           (trata-tecla-solta-vaca (jogo-vaca j) ke)
+           (jogo-chupacabras j)
+           (jogo-game-over? j)
+           (jogo-tspawn j)
+           ))
+
+
+;; trata-tecla-press-vaca: Vaca KeyEvent -> Vaca
 ;; quando tecla espaço é pressionada, vaca deve inverter direção (dx)
 ;(define (trata-tecla-vaca v ke) v)
 
-(define (trata-tecla-vaca v ke)
+(define (trata-tecla-press-vaca v ke)
   (cond [(key=? ke "right")
-         (make-vaca (vaca-x v) D-VACA-DEFAULT (vaca-y v) 0)]
+         (make-vaca (vaca-x v) D-VACA-DEFAULT (vaca-y v) (vaca-dy v))]
         [(key=? ke "left")
-         (make-vaca (vaca-x v) (- D-VACA-DEFAULT) (vaca-y v) 0)]
-        [(key=? ke "down")
-         (make-vaca (vaca-x v) 0 (vaca-y v) D-VACA-DEFAULT)]
+         (make-vaca (vaca-x v) (- D-VACA-DEFAULT) (vaca-y v) (vaca-dy v))]       
         [(key=? ke "up")
-         (make-vaca (vaca-x v) 0 (vaca-y v) (- D-VACA-DEFAULT))]
+         (make-vaca (vaca-x v) (vaca-dx v) (vaca-y v) DY-PULO)]
         [else v]))
 
+;; trata-tecla-solta-vaca: Vaca KeyEvent -> Vaca
+;; quando tecla espaço é pressionada, vaca deve inverter direção (dx)
+;(define (trata-tecla-vaca v ke) v)
+
+(define (trata-tecla-solta-vaca v ke)
+   (make-vaca (vaca-x v)
+              (cond [(or (key=? ke "right") (key=? ke "left"))
+                     0]
+                    [else (vaca-dx v)])
+              (vaca-y v) (vaca-dy v)))
+       
 
 ;; FIM DA LOGICA DE INTERAÇÃO
 
@@ -461,6 +507,6 @@
                                  
             (to-draw   desenha-vaca)   ; Vaca -> Image   
                                           
-            (on-key    trata-tecla-vaca)))    ; Vaca KeyEvent -> Vaca
+            (on-key    trata-tecla-press-vaca)))    ; Vaca KeyEvent -> Vaca
 
 

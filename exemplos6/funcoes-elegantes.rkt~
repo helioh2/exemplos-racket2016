@@ -1,0 +1,4 @@
+#lang racket
+
+(define (fat n)
+  (foldr * 1 (build-list n (lambda (x) (+ 1 (values x))))))
